@@ -394,7 +394,7 @@ class BartApi():
                              b=trips_before, a=trips_after,
                              l=legend)
 
-    def get_schedule_fare(self, orig, dest, date='today', sched=None):
+    def get_fare_schedule(self, orig, dest, date='today', sched=None):
         """
         Requests fare information for a trip between two stations.
 
@@ -426,7 +426,7 @@ class BartApi():
             return self.call_api('sched', 'fare', orig=orig, dest=dest,
                                  date=date)
 
-    def get_schedule_for_holiday(self):
+    def get_holiday_schedule(self):
         """
         Requests information on the upcoming BART holidays, and what type of
         schedule will be run on those days.
@@ -514,25 +514,90 @@ class BartApi():
             return self.call_api('sched', 'load',
                                  ld1=ld1, st=st)
 
-    def get_schedule_by_route(self):
-        """Requests a full schedule for the specified route."""
-        return self.call_api('sched', 'routesched')
+    def get_route_schedule(self, sched=None, date='today', legend=0):
+        """
+        Requests a full schedule for the specified route.
 
-    def get_schedule(self):
-        """Requests information about the currently available schedules."""
+        sched=<sched_num>   Specifies a specific schedule to use. Defaults to
+                            current schedule. (Optional)
+        date=<mm/dd/yyyy>   Specifies a specific date to use. This will
+                            determine the appropriate schedule for that date,
+                            and give back information about the routes for
+                            that schedule. Date can also be specified as
+                            "today" or "now". (Optional)
+        l=<number>  Specifies whether the legend information should be
+                    included. By default it is 0 (not shown), but can be turned
+                    on by setting it to 1. (Optional)
+
+        Notes
+
+        Route Information sometimes changes with schedule changes as lines are
+        reconfigured. This may affect the name and abbreviation of the route.
+
+        The optional "date" and "sched" parameters should not be used together.
+        If they are, the date will be ignored, and the sched parameter will be
+        used.
+
+        Special Schedule messages will only appear if they apply to the
+        specified route on the given day.
+        """
+        self.check_date(date)
+        self.check_legend(legend)
+        if sched:
+            return self.call_api('sched', 'routesched',
+                                 sched=sched, date=date, l=legend)
+        else:
+            return self.call_api('sched', 'routesched',
+                                 date=date, l=legend)
+
+    def get_schedules(self):
+        """
+        Requests information about the currently available schedules.
+
+        Notes:
+
+        This information is primarily useful when a new schedule has been
+        announced and released. The API will automatically use the appropriate
+        schedule based on the date specified in the call once a new schedule
+        has been released.
+        """
         return self.call_api('sched', 'scheds')
 
-    def get_schedule_special(self):
+    def get_special_schedule(self, legend=0):
         """
         Requests information about all special schedule notices in effect.
-        """
-        return self.call_api('sched', 'special')
 
-    def get_schedule_station(self):
+        l=<number>  Specifies whether the legend information should be
+                    included. By default it is 0 (not shown), but can be turned
+                    on by setting it to 1. (Optional)
+
+        Notes:
+
+        Occasionally BART has special schedule announcements that affect
+        certain stations (construction, etc.). If a trip is requested from the
+        API, a message will be appended to the trip results stating that a
+        special message may pertain to the trip. This API call provides all
+        current and future special schedule notices. A notice is considered
+        current or future if the end date is greater than or equal to the date
+        the call is made.
+        """
+        return self.call_api('sched', 'special', l=legend)
+
+    def get_station_schedule(self, orig, date='today'):
         """
         Requests an entire daily schedule for the particular station specified.
+
+        orig=<stn>   The station for which a schedule is requested. (Required)
+        date=<mm/dd/yyyy>   Specifies a specific date to use. This will
+                            determine the appropriate schedule for that date,
+                            and give back information about the routes for
+                            that schedule. Date can also be specified as
+                            "today" or "now". (Optional)
+
         """
-        return self.call_api('sched', 'stnsched')
+        self.check_station(orig)
+        self.check_date(date)
+        return self.call_api('sched', 'stnsched', orig=orig, date=date)
 
     # Station Information API
 
