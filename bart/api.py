@@ -99,6 +99,42 @@ class BartApi():
         if legend not in [0, 1]:
             raise Exception("Legend value '{}' invalid".format(legend))
 
+    def check_load(self, train):
+        """
+        Raise Exception if load parameter invalid
+
+        Station, Route, and Train ID. The
+        format for this parameter is a four letter station
+        code, a two digit route (left padded with 0 if needed)
+        and a two digit train id. The train id (trainIdx)
+        information is included in the <leg> element of the
+        results of a arrive/depart request. (Optional)
+        """
+        station = train[:4]
+        route = train[4:6]
+        train_id = train[6:]
+        if station not in constants.stations.keys():
+            raise Exception("Station '{}' not recognized".format(station))
+        try:
+            int(route)
+        except Exception:
+            raise Exception("Route '{}' not recognized".format(route))
+        try:
+            int(train_id)
+        except Exception:
+            raise Exception("Train ID '{}' not recognized".format(train_id))
+
+    def check_schedule_type(self, st):
+        """
+        Raise an Exception if station type invalid.
+
+        Schedule type for this request. Schedule type is a single
+        character representing Weekday (W), Saturday (S) or
+        Sunday/Holiday (H). (Required)
+        """
+        if st.lower() not in 'wsh':
+            raise Exception("Station type '{}' not recognized".format(st))
+
     # Common API Calls
 
     def get_api_commands(self, endpoint):
@@ -358,20 +394,125 @@ class BartApi():
                              b=trips_before, a=trips_after,
                              l=legend)
 
-    def get_schedule_fare(self):
-        """Requests fare information for a trip between two stations."""
-        return self.call_api('sched', 'fare')
+    def get_schedule_fare(self, orig, dest, date='today', sched=None):
+        """
+        Requests fare information for a trip between two stations.
+
+        orig=<station>  Specifies the origination station. Stations should be
+                        specified using the four character abbreviations.
+                        (Required)
+        dest=<station>  Specifies the destination station. Stations should be
+                        specified using the four character abbreviations.
+                        (Required)
+        date=<mm/dd/yyyy>   Specifies a specific date to use for calculating
+                            the fare. If not specified, the current date will
+                            be used. Also the terms "now" or "today" may be
+                            used instead of "mm/dd/yyyy". (Optional)
+        sched=<number>  Specifies a specific schedule to use. (Optional)
+
+        Notes:
+
+        The optional "date" and "sched" parameters should not be used together.
+        If they are, the date will be ignored, and the sched parameter will be
+        used.
+        """
+        self.check_station(orig)
+        self.check_station(dest)
+        self.check_date(date)
+        if sched:
+            return self.call_api('sched', 'fare', orig=orig, dest=dest,
+                                 date=date, sched=sched)
+        else:
+            return self.call_api('sched', 'fare', orig=orig, dest=dest,
+                                 date=date)
 
     def get_schedule_for_holiday(self):
         """
         Requests information on the upcoming BART holidays, and what type of
         schedule will be run on those days.
+
+        Notes:
+
+        On BART Holidays, the trains may run on a different schedule from
+        normal. This typically will mean that a Sunday/Holiday schedule will be
+        used, however, sometimes a Saturday schedule is used. The Schedule
+        Information API will automatically use the appropriate schedule for any
+        trip that coincides with a BART holiday. In addition, a message will be
+        appended to the trip results stating that a holiday schedule was used.
         """
         return self.call_api('sched', 'holiday')
 
-    def get_schedule_load_factor(self):
-        """Requests estimated load factor for specified train(s)."""
-        return self.call_api('sched', 'load')
+    def get_schedule_load_factor(self, ld1, ld2=None, ld3=None, st='W'):
+        """
+        Requests estimated load factor for specified train(s).
+
+        ld1=<ssssrrtt>  First train to get the estimated load factor for. The
+                        format for this parameter is a four letter station
+                        code, a two digit route (left padded with 0 if needed)
+                        and a two digit train id. The train id (trainIdx)
+                        information is included in the <leg> element of the
+                        results of a arrive/depart request. (Required)
+        ld2=<ssssrrtt>  Second train to get the estimated load factor for. The
+                        format for this parameter is a four letter station
+                        code, a two digit route (left padded with 0 if needed)
+                        and a two digit train id. The train id (trainIdx)
+                        information is included in the <leg> element of the
+                        results of a arrive/depart request. (Optional)
+        ld3=<ssssrrtt>  Third train to get the estimated load factor for. The
+                        format for this parameter is a four letter station
+                        code, a two digit route (left padded with 0 if needed)
+                        and a two digit train id. The train id (trainIdx)
+                        information is included in the <leg> element of the
+                        results of a arrive/depart request. (Optional)
+        st=<W|S|H>  Schedule type for this request. Schedule type is a single
+                    character representing Weekday (W), Saturday (S) or
+                    Sunday/Holiday (H). (Required)
+
+        Notes:
+
+        The load factor command takes from 1 to 3 ld parameters, each
+        representing the start of a trip leg so that for any given trip you
+        can get information for the entire trip in a single call. Currently
+        there are only load factor estimates for Weekday schedules.
+
+        As an example of how this would be used, say you want to find the load
+        information for a trip between Ashby and Colma. That trip has either
+        1 leg (Millbrae Line) or 2 legs (Fremont --> SFIA lines). To get the
+        load factor for each of those trips, you might use the following
+        calls:
+
+        http://api.bart.gov/api/sched.aspx?cmd=load&ld1=ASHB0746&st=w&key=MW9S-E7SL-26DU-VV8V
+
+        to get the Millbrae trip information and
+
+        http://api.bart.gov/api/sched.aspx?cmd=load&ld1=ASHB0446&ld2=MCAR0159&st=w&key=MW9S-E7SL-26DU-VV8V
+
+        for the Fremont to SFIA trip, which has a transfer at MCAR.
+
+        Currently the official BART website shows the estimated load factor for
+        the train at the origin station and at any transfer stations.
+
+        The results will display as many leg elements as there were ld
+        parameters specified on the API call. If a load factor is not found for
+        a given schedule type or ld specified, the load attribute will be "-1",
+        otherwise a load of 1-3 will be displayed.
+        """
+        self.check_load(ld1)
+        if ld2:
+            self.check_load(ld2)
+        if ld3:
+            self.check_load(ld3)
+        self.check_schedule_type(st)
+
+        if all(ld1, ld2, ld3):
+            return self.call_api('sched', 'load',
+                                 ld1=ld1, ld2=ld2, ld3=ld3, st=st)
+        elif all(ld1, ld2):
+            return self.call_api('sched', 'load',
+                                 ld1=ld1, ld2=ld2, st=st)
+        else:
+            return self.call_api('sched', 'load',
+                                 ld1=ld1, st=st)
 
     def get_schedule_by_route(self):
         """Requests a full schedule for the specified route."""
