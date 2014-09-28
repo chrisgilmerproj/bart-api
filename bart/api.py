@@ -37,7 +37,7 @@ class BartApi():
         if out['message']:
             error = out['message'].get('error', None)
             if error:
-                print error
+                raise Exception(error)
         return out
 
     # Param Checking
@@ -175,15 +175,15 @@ class BartApi():
         messages.
         """
         self.check_station(orig)
-        return self.call_api('bsa', 'bsa', orig=orig)['bsa']
+        return self.call_api('bsa', 'bsa', orig=orig)
 
     def get_number_of_trains(self):
         """Request the number of trains currently active in the system"""
-        return self.call_api('bsa', 'count')['traincount']
+        return self.call_api('bsa', 'count')
 
     def get_elevator_status(self):
         """Requests current elevator status information"""
-        return self.call_api('bsa', 'elev')['bsa']
+        return self.call_api('bsa', 'elev')
 
     # Real-Time Information API
 
@@ -211,14 +211,14 @@ class BartApi():
         be used.
         """
         self.check_station(orig)
-        if orig == 'all':
-            return self.call_api('etd', 'etd', orig=orig)
-        elif plat:
+        if plat:
             self.check_platform(plat)
             return self.call_api('etd', 'etd', orig=orig, plat=plat)
         elif dir:
             self.check_direction(dir)
             return self.call_api('etd', 'etd', orig=orig, dir=dir)
+        else:
+            return self.call_api('etd', 'etd', orig=orig)
 
     # Route Information API
 
@@ -609,17 +609,13 @@ class BartApi():
         self.check_station(orig)
         self.check_legend(legend)
 
-        out = self.call_api('stn', 'stnaccess', orig=orig, l=legend)
-        stations = {'stations': out['stations']}
-        if legend == 1:
-            stations['legend'] = out['message']['legend']
-        return stations
+        return self.call_api('stn', 'stnaccess', orig=orig, l=legend)
 
     def get_station_info(self, orig):
         """Provides a detailed information about the specified station."""
         self.check_station(orig)
-        return self.call_api('stn', 'stninfo', orig=orig)['stations']
+        return self.call_api('stn', 'stninfo', orig=orig)
 
     def get_stations(self):
         """Provides a list of all available stations."""
-        return self.call_api('stn', 'stns')['stations']
+        return self.call_api('stn', 'stns')
