@@ -15,6 +15,9 @@ setup(
                                     "tests"]),
     include_package_data=True,
     zip_safe=False,
+    install_requires=['requests>=2.4.1',
+                      'xmltodict>=0.9.0',
+                      ],
     classifiers=(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
