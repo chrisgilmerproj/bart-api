@@ -47,6 +47,7 @@ For development you'll want to install necessary requirements separately:
 $ virtualenv env
 $ source env/bin/activate
 (env)$ pip install -r requirements.txt
+(env)$ pip install -r requirements_dev.txt
 ```
 
 You can also use the `Makefile` to test building the package:
